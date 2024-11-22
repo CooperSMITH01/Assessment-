@@ -69,6 +69,9 @@ player_choice = None
 computer_choice = None
 result_message = None
 
+# Button dimensions (top-right corner)
+button_width, button_height = 150, 50
+
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -78,9 +81,26 @@ while True:
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     result = hands.process(rgb_frame)
 
+    # Button position dynamically set in the top-right corner
+    button_x = frame.shape[1] - button_width - 10
+    button_y = 10
+
     if result.multi_hand_landmarks:
         for landmarks in result.multi_hand_landmarks:
             mp_drawing.draw_landmarks(frame, landmarks, mp_hands.HAND_CONNECTIONS)
+
+            # Check if index_tip touches the reset button (only in "show_result" state)
+            if state == "show_result":
+                index_tip_x = int(landmarks.landmark[8].x * frame.shape[1])
+                index_tip_y = int(landmarks.landmark[8].y * frame.shape[0])
+
+                if button_x < index_tip_x < button_x + button_width and button_y < index_tip_y < button_y + button_height:
+                    state = "waiting_for_start"
+                    countdown = 4
+                    start_time = None
+                    player_choice = None
+                    computer_choice = None
+                    result_message = None
 
     if state == "waiting_for_start":
         cv2.putText(frame, "Press Thumb-Up to Start", (frame.shape[1] // 2 - 150, frame.shape[0] // 2),
@@ -125,11 +145,10 @@ while True:
         cv2.putText(frame, f'Computer: {computer_choice}', (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2,
                     cv2.LINE_AA)
         cv2.putText(frame, result_message, (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-        cv2.putText(frame, "Press SPACE to Restart", (10, 190), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2,
-                    cv2.LINE_AA)
 
-        if cv2.waitKey(1) & 0xFF == ord(' '):  # Space bar pressed
-            state = "waiting_for_start"
+        # Draw the reset button in the top-right corner
+        cv2.rectangle(frame, (button_x, button_y), (button_x + button_width, button_y + button_height), (255, 0, 0), -1)
+        cv2.putText(frame, "Reset", (button_x + 10, button_y + 35), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
     cv2.imshow("Rock, Paper, Scissors Game", frame)
 
